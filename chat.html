@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chatbot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #e5e7eb;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            padding: 1rem;
+        }
+        .chat-container {
+            width: 100%;
+            max-width: 500px;
+            height: 80vh;
+            max-height: 700px;
+            background-color: #ffffff;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid #d1d5db;
+        }
+        .chat-header {
+            background-color: #2563eb;
+            color: white;
+            padding: 1rem 1.5rem;
+            text-align: center;
+            font-size: 1.25rem;
+            font-weight: 600;
+            border-top-left-radius: 1.5rem;
+            border-top-right-radius: 1.5rem;
+        }
+        #messages {
+            flex-grow: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .message-bubble {
+            padding: 0.75rem 1rem;
+            border-radius: 1.25rem;
+            max-width: 85%;
+        }
+        .user-message {
+            background-color: #dbeafe;
+            color: #1e40af;
+            align-self: flex-end;
+            text-align: right;
+            border-bottom-right-radius: 0.25rem;
+        }
+        .bot-message {
+            background-color: #f3f4f6;
+            color: #374151;
+            align-self: flex-start;
+            text-align: left;
+            border-bottom-left-radius: 0.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .bot-message-text {
+            word-wrap: break-word;
+        }
+        .chat-input-area {
+            display: flex;
+            padding: 1rem;
+            border-top: 1px solid #e5e7eb;
+            background-color: #f9fafb;
+            gap: 0.5rem;
+        }
+        .chat-input {
+            flex-grow: 1;
+            padding: 0.75rem 1.25rem;
+            border-radius: 9999px;
+            border: 1px solid #d1d5db;
+            outline: none;
+            transition: all 0.2s ease-in-out;
+            background-color: white;
+        }
+        .chat-input:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+        }
+        .send-button {
+            padding: 0.75rem 1.5rem;
+            background-color: #2563eb;
+            color: white;
+            font-weight: 500;
+            border-radius: 9999px;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .send-button:hover {
+            background-color: #1e40af;
+        }
+        .feature-button {
+            margin-top: 0.25rem;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.75rem;
+            background-color: #d1d5db;
+            color: #4b5563;
+            font-weight: 500;
+            border-radius: 9999px;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+        .feature-button:hover {
+            background-color: #9ca3af;
+        }
+        .loading-dots {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 1.25rem;
+        }
+        .dot {
+            width: 0.5rem;
+            height: 0.5rem;
+            background-color: #6b7280;
+            border-radius: 50%;
+            margin: 0 0.25rem;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+        .dot:nth-child(1) { animation-delay: -0.32s; }
+        .dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="bg-gray-200">
+
+<div class="chat-container">
+    <div class="chat-header">
+        <span class="font-bold"> Debug Café Chatbot</span>
+    </div>
+    <div id="messages" class="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+        <!-- Chat messages will be appended here by JavaScript -->
+        <div class="message-bubble bot-message shadow-sm">
+            <span class="bot-message-text">Hello! I am the The Debug Café support bot. How can I help you today?</span>
+            <div class="flex gap-2 justify-end">
+                <button class="feature-button read-aloud-btn">Read Aloud 🔊</button>
+            </div>
+        </div>
+    </div>
+    <div class="chat-input-area">
+        <input type="text" id="userInput" class="chat-input" placeholder="Type your message...">
+        <button id="sendBtn" class="send-button">Send</button>
+    </div>
+    <div class="px-4 pb-4 flex justify-center gap-2">
+        <button id="summarizeBtn" class="send-button">Summarize Chat ✨</button>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const userInput = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const messagesDiv = document.getElementById('messages');
+        const summarizeBtn = document.getElementById('summarizeBtn');
+
+        const apiKey ="_APIKEY_";
+        const textApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+        const ttsApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+
+        const knowledgeBase = `
+            Restaurant Name: Debug Café
+
+Location: 123 Main Street, Anytown, 
+
+Hours: Open daily from 6 AM to 8 PM.
+
+Menu: We serve a variety of hot and iced coffees, teas, pastries baked fresh daily, and a selection of sandwiches and salads. Our special is the "Midnight Mocha," a dark chocolate and espresso blend.
+
+Services: We offer dine-in, takeout, and have a free Wi-Fi connection for customers. We do not currently offer delivery or online ordering through this chat.
+
+Reservations: We are a casual coffee shop and do not take reservations.
+
+Mission: To provide a comfortable space and high-quality coffee.
+
+Policy: The bot's purpose is to answer simple questions about the menu, hours, and location. For all other requests, it will direct customers to speak with a staff member in person.
+        `;
+
+        const base64ToArrayBuffer = (base64) => {
+            const binaryString = atob(base64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        };
+
+        const pcmToWav = (pcmData, sampleRate) => {
+            const pcm16 = new Int16Array(pcmData);
+            const numChannels = 1;
+            const bitsPerSample = 16;
+            const byteRate = sampleRate * numChannels * bitsPerSample / 8;
+            const blockAlign = numChannels * bitsPerSample / 8;
+
+            const buffer = new ArrayBuffer(44 + pcm16.length * 2);
+            const view = new DataView(buffer);
+
+            // RIFF chunk descriptor
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + pcm16.length * 2, true);
+            writeString(view, 8, 'WAVE');
+
+            // fmt chunk
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true); // PCM format
+            view.setUint16(22, numChannels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, byteRate, true);
+            view.setUint16(32, blockAlign, true);
+            view.setUint16(34, bitsPerSample, true);
+
+            // data chunk
+            writeString(view, 36, 'data');
+            view.setUint32(40, pcm16.length * 2, true);
+
+            // PCM data
+            for (let i = 0; i < pcm16.length; i++) {
+                view.setInt16(44 + i * 2, pcm16[i], true);
+            }
+
+            return new Blob([view], { type: 'audio/wav' });
+        };
+
+        const writeString = (view, offset, string) => {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        };
+
+        const readMessageAloud = async (text) => {
+            try {
+                const payload = {
+                    contents: [{ parts: [{ text: text }] }],
+                    generationConfig: {
+                        responseModalities: ["AUDIO"],
+                        speechConfig: {
+                            voiceConfig: { prebuiltVoiceConfig: { voiceName: "Kore" } }
+                        }
+                    },
+                    model: "gemini-2.5-flash-preview-tts"
+                };
+
+                const response = await fetch(ttsApiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`TTS API response was not ok: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                const part = result?.candidates?.[0]?.content?.parts?.[0];
+                const audioData = part?.inlineData?.data;
+                const mimeType = part?.inlineData?.mimeType;
+
+                if (audioData && mimeType && mimeType.startsWith("audio/")) {
+                    const sampleRateMatch = mimeType.match(/rate=(\d+)/);
+                    if (!sampleRateMatch || sampleRateMatch.length < 2) {
+                        throw new Error("Could not find sample rate in mimeType");
+                    }
+                    const sampleRate = parseInt(sampleRateMatch[1], 10);
+                    const pcmData = base64ToArrayBuffer(audioData);
+                    const wavBlob = pcmToWav(pcmData, sampleRate);
+                    const audioUrl = URL.createObjectURL(wavBlob);
+                    
+                    const audio = new Audio(audioUrl);
+                    audio.play();
+
+                    audio.onended = () => URL.revokeObjectURL(audioUrl);
+                } else {
+                    console.error("Audio data is missing or invalid.");
+                }
+
+            } catch (error) {
+                console.error("Error fetching or playing audio:", error);
+            }
+        };
+
+        const displayMessage = (text, sender) => {
+            const messageBubble = document.createElement('div');
+            messageBubble.className = `message-bubble shadow-sm ${sender}-message`;
+            
+            const messageText = document.createElement('span');
+            messageText.className = 'bot-message-text';
+            messageText.textContent = text;
+            messageBubble.appendChild(messageText);
+
+            if (sender === 'bot') {
+                const buttonContainer = document.createElement('div');
+                buttonContainer.className = 'flex gap-2 justify-end';
+
+                const readAloudBtn = document.createElement('button');
+                readAloudBtn.className = 'feature-button read-aloud-btn';
+                readAloudBtn.innerHTML = 'Read Aloud 🔊';
+                readAloudBtn.onclick = () => readMessageAloud(text);
+                buttonContainer.appendChild(readAloudBtn);
+
+                messageBubble.appendChild(buttonContainer);
+            }
+
+            messagesDiv.appendChild(messageBubble);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        };
+
+        const showLoading = () => {
+            const loadingDiv = document.createElement('div');
+            loadingDiv.id = 'loading';
+            loadingDiv.className = 'message-bubble bot-message shadow-sm loading-dots';
+            loadingDiv.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+            messagesDiv.appendChild(loadingDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        };
+
+        const hideLoading = () => {
+            const loadingDiv = document.getElementById('loading');
+            if (loadingDiv) {
+                loadingDiv.remove();
+            }
+        };
+
+        const sendMessage = async () => {
+            const userMessage = userInput.value.trim();
+            if (userMessage === '') return;
+
+            displayMessage(userMessage, 'user');
+            userInput.value = '';
+            showLoading();
+
+            try {
+                const payload = {
+                    contents: [{
+                        parts: [
+                            { text: knowledgeBase },
+                            { text: `User query: ${userMessage}` }
+                        ]
+                    }],
+                    model: "gemini-2.5-flash-preview-05-20"
+                };
+
+                const response = await fetch(textApiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API response was not ok: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                const botResponse = result?.candidates?.[0]?.content?.parts?.[0]?.text || "I'm sorry, I couldn't generate a response at this time.";
+                
+                hideLoading();
+                displayMessage(botResponse, 'bot');
+
+            } catch (error) {
+                console.error('Error fetching from Gemini API:', error);
+                hideLoading();
+                displayMessage('Sorry, an error occurred. Please try again later.', 'bot');
+            }
+        };
+
+        const summarizeChat = async () => {
+            const messages = Array.from(messagesDiv.querySelectorAll('.message-bubble'));
+            const chatHistory = messages.map(msg => {
+                const sender = msg.classList.contains('user-message') ? 'User' : 'Chatbot';
+                const text = msg.querySelector('.bot-message-text')?.textContent || msg.textContent;
+                return `${sender}: ${text}`;
+            }).join('\n');
+
+            if (chatHistory.length < 50) {
+                displayMessage("The chat history is too short to summarize.", "bot");
+                return;
+            }
+
+            displayMessage("Summarizing chat...", 'bot');
+            showLoading();
+
+            try {
+                const payload = {
+                    contents: [{
+                        parts: [
+                            { text: `Summarize the following chat conversation concisely:\n\n${chatHistory}` }
+                        ]
+                    }],
+                    model: "gemini-2.5-flash-preview-05-20"
+                };
+
+                const response = await fetch(textApiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API response was not ok: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                const summary = result?.candidates?.[0]?.content?.parts?.[0]?.text || "I'm sorry, I couldn't generate a summary.";
+                
+                hideLoading();
+                displayMessage(summary, 'bot');
+
+            } catch (error) {
+                console.error('Error fetching from Gemini API:', error);
+                hideLoading();
+                displayMessage('Sorry, an error occurred while summarizing.', 'bot');
+            }
+        };
+
+        sendBtn.addEventListener('click', sendMessage);
+        userInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+        summarizeBtn.addEventListener('click', summarizeChat);
+    });
+</script>
+
+</body>
+</html>
